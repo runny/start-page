@@ -101,9 +101,10 @@
   /* the middle */
   .wrap { position:relative; z-index:2; flex:1; min-height:100dvh; display:flex; flex-direction:column;
           align-items:center; justify-content:center; width:100%;
-          /* top and bottom match, so centred here is centred in the viewport. The top
-             figure clears the floating header. */
-          padding:clamp(84px,11vh,112px) clamp(18px,4vw,40px); }
+          /* The top figure clears the floating header. It does not need to be matched at the
+             bottom: the flex centring does that on its own, and matching it pushed the main
+             action below the fold on a short window. */
+          padding:88px clamp(18px,4vw,40px) 40px; }
   /* a short window must not clip the top of the block */
   @supports (justify-content:safe center) { .wrap { justify-content:safe center; } }
   .lede { text-align:center; max-width:640px; margin-bottom:clamp(20px,3vh,32px); }
@@ -237,6 +238,12 @@
                  border:1px solid #e3edc4; border-radius:999px; padding:4px 11px; white-space:nowrap; }
   .abnrow.done .got { display:inline-block; }
   .abnrow.done .qbtn { display:none; }
+  /* The payment reference number row. Four out of four readers took this list as a form to fill
+     in rather than things to have handy, so it is off. It is kept, not deleted, because it is
+     worth testing properly one day rather than settling on an opinion. Turn it on for a visit
+     with ?arm=prn on the web address. */
+  .nwrap .nitem[data-arm="prn"] { display:none; }
+  body.arm-prn .nwrap .nitem[data-arm="prn"] { display:flex; }
   .nitem.abnrow .abnval { display:none; align-items:center; justify-content:space-between; gap:10px; margin-top:10px;
             padding-top:11px; border-top:1px solid var(--n100); }
   .nitem.abnrow.done .abnval { display:flex; }
@@ -457,6 +464,15 @@
   .sheet .close { margin-top:18px; width:100%; background:var(--n-btn); color:#fff; border:0; border-radius:8px;
                   padding:11px; font-size:13px; font-weight:550; font-family:inherit; cursor:pointer; }
 
+  /* A short window, a laptop lid half closed or a small monitor. The page headline is the
+     first thing to go, the same way it does on a phone, because the card carries its own.
+     Found by the quality check at 1280x700, where the main action sat 57px below the fold. */
+  @media (min-width:641px) and (max-height:820px) {
+    .lede { display:none; }
+    [data-s="signup"] > .nwrap > .nh, [data-s="signup"] > .nwrap > .nsub { display:block; }
+    .wrap { padding-top:84px; padding-bottom:28px; }
+  }
+
   /* The artwork comes down a size on a phone, so both options still fit one screen.
      These sit here, after the rules they override, not up with the other phone rules. */
   @media (max-width:640px) {
@@ -554,7 +570,7 @@
               </button>
             </div>
           </div>
-          <div class="nitem"><span>Your payment reference number</span><button class="qbtn" data-q="prn" aria-label="What is a payment reference number and where do I find it"><span class="q" aria-hidden="true">?</span></button></div>
+          <div class="nitem" data-arm="prn"><span>Your payment reference number</span><button class="qbtn" data-q="prn" aria-label="What is a payment reference number and where do I find it"><span class="q" aria-hidden="true">?</span></button></div>
           <div class="nitem"><span>A credit card</span><button class="qbtn" data-q="card" aria-label="Why a credit card is needed and when"><span class="q" aria-hidden="true">?</span></button></div>
           <div class="nlater">
             <p>Your team, super and leave balances come later, with us.</p>
@@ -586,7 +602,7 @@
               </button>
             </div>
           </div>
-          <div class="nitem"><span>Your payment reference number</span><button class="qbtn" data-q="prn" aria-label="What is a payment reference number and where do I find it"><span class="q" aria-hidden="true">?</span></button></div>
+          <div class="nitem" data-arm="prn"><span>Your payment reference number</span><button class="qbtn" data-q="prn" aria-label="What is a payment reference number and where do I find it"><span class="q" aria-hidden="true">?</span></button></div>
           <div class="nitem"><span>A credit card</span><button class="qbtn" data-q="card" aria-label="Why a credit card is needed and when"><span class="q" aria-hidden="true">?</span></button></div>
           <div class="nlater">
             <p>Your team, super and leave balances come later, with us.</p>
@@ -775,6 +791,14 @@ const T = (function () {
   const log = [];
   window.psEvents = log;
 
+  /* ---- which version of the page this visit saw -------------------------
+     A test nobody can read is not a test, so the arm rides on every signal. */
+  const ARM = (new URLSearchParams(location.search).get('arm') || 'base').toLowerCase();
+  if (ARM !== 'base') document.documentElement.classList.add('arm-' + ARM);
+  addEventListener('DOMContentLoaded', function () {
+    if (ARM !== 'base') document.body.classList.add('arm-' + ARM);
+  });
+
   /* ---- the ad click, kept for the whole visit --------------------------- */
   const KEYS = ['fbclid', 'gclid', 'gbraid', 'wbraid', 'msclkid', 'ttclid', 'li_fat_id',
                 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
@@ -831,7 +855,8 @@ const T = (function () {
       step_points: PTS[name] != null ? PTS[name] : (BONUS[name] || 0),
       intent_score: score,
       furthest_step: furthest,
-      value_is: 'intent_points_not_money'
+      value_is: 'intent_points_not_money',
+      arm: ARM
     }, CLICK, params || {});
 
     if (window.fbq) {
@@ -893,7 +918,7 @@ const T = (function () {
     seen.StartExit = 1;
     const p = Object.assign({ value: depth + extra, intent_score: depth + extra,
                               furthest_step: furthest, events_fired: log.length,
-                              value_is: 'intent_points_not_money' }, CLICK);
+                              value_is: 'intent_points_not_money', arm: ARM }, CLICK);
     if (window.fbq) { try { fbq('trackCustom', 'StartExit', p); } catch (e) {} }
     push(Object.assign({ event: 'StartExit' }, p));
   }
