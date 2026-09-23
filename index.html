@@ -483,6 +483,51 @@
     .screenhint .onscreen { width:20px; height:20px; right:3px; bottom:3px; }
   }
 
+  /* On a wide screen the CARD is what sits in the middle of the window, not the card and the
+     headline treated as one block. Three rows, equal top and bottom, card in the middle: the
+     headline then rises to sit just above it. */
+  @media (min-width:641px) {
+    .wrap { display:grid; grid-template-rows:1fr auto 1fr; justify-items:center;
+            align-content:stretch; padding-bottom:88px; }
+    .lede { grid-row:1; align-self:end; margin-bottom:clamp(20px,3vh,32px); }
+    .ph { grid-row:2; }
+    #undercard { grid-row:3; align-self:start; }
+    #sheet { grid-row:2; }
+  }
+
+  /* With the business step out, the flow is two steps, so the last progress mark goes too. */
+  html.no-biz-step .nprog i:last-child { display:none; }
+
+  /* A quiet way to say something is wrong. Low contrast on purpose: it should be findable
+     without competing with anything on the page. */
+  .fbtn { position:fixed; right:16px; bottom:14px; z-index:40; border:0; background:none; cursor:pointer;
+          font-family:var(--text); font-size:12.5px; font-weight:500; color:rgba(45,42,42,.34);
+          padding:8px 10px; border-radius:8px; transition:color .18s ease, background .18s ease; }
+  .fbtn:hover { color:rgba(45,42,42,.72); background:rgba(255,255,255,.6); }
+  .fbtn:focus-visible { outline:2px solid var(--chilli); outline-offset:2px; color:var(--n900); }
+  .fbwrap { position:fixed; inset:0; z-index:60; display:flex; align-items:flex-end;
+            justify-content:flex-end; padding:20px; background:rgba(28,26,26,.18);
+            backdrop-filter:blur(2px); }
+  .fbwrap[hidden] { display:none; }
+  .fbcard { position:relative; width:100%; max-width:360px; background:#fff; border-radius:18px;
+            padding:22px 22px 20px; box-shadow:0 18px 50px -12px rgba(45,42,42,.3); }
+  .fbx { position:absolute; top:10px; right:12px; border:0; background:none; cursor:pointer;
+         font-size:22px; line-height:1; color:var(--n-mut); padding:4px 8px; }
+  .fbstep { display:none; } .fbstep.on { display:block; }
+  .fbh { font-family:var(--display); font-size:19px; font-weight:800; letter-spacing:-.01em; color:var(--heading); }
+  .fbsub { font-size:14px; color:var(--n-mut); line-height:1.5; margin-top:6px; }
+  .fbcard textarea { width:100%; margin-top:14px; border:1px solid var(--n100); border-radius:12px;
+                     padding:12px 14px; font-family:var(--text); font-size:15px; color:var(--n900);
+                     resize:vertical; outline:0; }
+  .fbcard textarea:focus { border-color:var(--chilli); box-shadow:0 0 0 3px rgba(216,71,39,.12); }
+  .fbcard .nbtn { margin-top:14px; width:100%; }
+  .fbcard .nlink { margin-top:12px; }
+  @media (max-width:640px) {
+    .fbtn { bottom:auto; top:10px; right:8px; font-size:12px; }
+    .fbwrap { align-items:flex-end; justify-content:center; padding:0; }
+    .fbcard { max-width:none; border-radius:18px 18px 0 0; }
+  }
+
   /* Prototype scaffolding. It belongs on the prototype, not on a page. */
   .tools, .nowrap-note { display:none !important; }
 
@@ -514,7 +559,7 @@
         <div class="nwrap">
           <div class="nprog"><i class="on"></i><i></i><i></i></div>
           <div class="nh">Let's get you set up.</div>
-          <div class="nsub">Three quick steps, then you're into PaySauce.</div>
+          <div class="nsub" id="stepcount">Three quick steps, then you're into PaySauce.</div>
           <div class="nlab" id="l-name">Your name</div>
           <input class="nin" id="f-name" type="text" placeholder="Sam" aria-labelledby="l-name" autocomplete="name">
           <div class="nlab" id="l-mail">Email</div>
@@ -744,7 +789,55 @@
     </div>
     <div class="tools"><a id="reset">Start again</a></div>
 </main>
+<button class="fbtn" id="fbtn" type="button">Feedback</button>
+<div class="fbwrap" id="fbwrap" hidden>
+  <div class="fbcard" role="dialog" aria-modal="true" aria-labelledby="fb-h">
+    <button class="fbx" id="fbx" type="button" aria-label="Close">&times;</button>
+
+    <div class="fbstep on" data-fb="say">
+      <div class="fbh" id="fb-h">What would you change?</div>
+      <textarea id="fb-text" rows="5" placeholder="Anything at all. Rough is fine."></textarea>
+      <button class="nbtn" id="fb-next" type="button" disabled>Next</button>
+    </div>
+
+    <div class="fbstep" data-fb="who">
+      <div class="fbh">Who should we thank?</div>
+      <div class="fbsub">So we can come back to you. Skip it if you would rather not.</div>
+      <div class="nlab" id="fb-ln">Your name</div>
+      <input class="nin" id="fb-name" type="text" placeholder="Sam" aria-labelledby="fb-ln">
+      <div class="nlab" id="fb-le">Email</div>
+      <input class="nin" id="fb-mail" type="email" placeholder="you@example.com" aria-labelledby="fb-le">
+      <button class="nbtn" id="fb-send" type="button">Send</button>
+      <div class="nlink" id="fb-skip">Send without my details</div>
+    </div>
+
+    <div class="fbstep" data-fb="done">
+      <div class="fbh">Thanks.</div>
+      <div class="fbsub" id="fb-done">That has gone straight through.</div>
+    </div>
+  </div>
+</div>
+
 <script>
+/* Set at publish time for the real page. The key is absent everywhere else, so a preview
+   shows labelled examples instead of a live search. */
+window.PS_ABR_GUID = window.PS_ABR_GUID || '';
+const PS_FORM = { portal: '442408573', id: 'e6809cf7-7aeb-4e0d-8219-fcf8a8b24c0e' };
+const PS_FEEDBACK_FORM = '53bba5a4-b01e-4866-8906-0970d3cf5777';
+
+/* The business step is only honest if the register can actually be asked. On the real site
+   with no key it would offer made-up businesses to real people, so the step takes itself out
+   and Continue goes straight to the list. Nothing to remember to switch: put the key on the
+   page and the step comes back on its own. A preview keeps the step, with its results plainly
+   marked as examples, so it can still be looked at and shown to people. */
+const PS_LIVE = /(^|\.)paysauce\.com$/.test(location.hostname);
+const PS_BIZ_STEP = !PS_LIVE || !!window.PS_ABR_GUID;
+if (!PS_BIZ_STEP) document.documentElement.classList.add('no-biz-step');
+if (!PS_BIZ_STEP) addEventListener('DOMContentLoaded', function () {
+  const n = document.getElementById('stepcount');
+  if (n) n.textContent = "Two quick steps, then you're into PaySauce.";
+});
+
 /* ===== intent signals =====================================================
    This page is one web address with nine screens. A screen change is NOT a
    page load, so an ad platform sees one view and nothing else unless every
@@ -940,6 +1033,11 @@ sc.addEventListener('click', e => {
   const t = e.target.closest('[data-go],[data-href]');
   if (!t || t.hasAttribute('disabled')) return;
   e.preventDefault();
+  /* nothing routes into the business step while it is out */
+  if (!PS_BIZ_STEP && (t.dataset.go === 'biz' || t.dataset.go === 'confirm')) {
+    if (t.classList.contains('nback')) return show('signup');
+    return show('need');
+  }
   /* A destination is a real page. It opens in a new tab and this one stays where it is. */
   if (t.dataset.href) window.open(t.dataset.href, '_blank', 'noopener');
   if (t.dataset.go) show(t.dataset.go);
@@ -966,12 +1064,34 @@ async function findBiz() {
   if (v.length < 2) { matchBox.innerHTML = ''; return; }
   matchBox.innerHTML = '<div class="mhead"><span>Looking&hellip;</span></div>';
 
+  /* Three ways to ask, in order, so the same page works everywhere:
+       1. straight to the government register, which allows browser calls and is what the
+          published page uses. Needs the key, which is put on the page at publish time.
+       2. the small endpoint on this machine, for working on it locally.
+       3. neither: clearly-labelled examples, so a missing key never looks like a real
+          search that found nothing. */
   let live = null;
-  try {
-    const r = await fetch('/__abn?q=' + encodeURIComponent(v));
-    const d = await r.json();
-    if (r.ok && Array.isArray(d.names)) live = d.names;
-  } catch (err) { /* offline or the server is not running: fall through to examples */ }
+  const guid = window.PS_ABR_GUID || '';
+  if (guid) {
+    try {
+      const r = await fetch('https://abr.business.gov.au/json/MatchingNames.aspx?' +
+        new URLSearchParams({ name: v, maxResults: 8, guid: guid }));
+      const t = await r.text();
+      const i = t.indexOf('('), j = t.lastIndexOf(')');
+      const d = JSON.parse(i > -1 ? t.slice(i + 1, j) : t);
+      if (d.Message) throw new Error(d.Message);
+      if (Array.isArray(d.Names)) live = d.Names.map(function (n) {
+        return { name: n.Name, abn: n.Abn, nameType: n.NameType, state: n.State, postcode: n.Postcode };
+      });
+    } catch (err) { /* fall through */ }
+  }
+  if (!live) {
+    try {
+      const r = await fetch('/__abn?q=' + encodeURIComponent(v));
+      const d = await r.json();
+      if (r.ok && Array.isArray(d.names)) live = d.names;
+    } catch (err) { /* no local endpoint either: fall through to examples */ }
+  }
 
   if (live) return render(live.map(function (n) {
     return {
@@ -1227,11 +1347,27 @@ askBtn.addEventListener('click', function () {
     ? 'A payroll person will text ' + mobile + '. Most people hear back the same working day.'
     : 'A payroll person will email ' + (ME.email || 'you') + '. Most people hear back the same working day.';
   show('reachdone');
-  fetch('/__lead', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: ME.name, email: ME.email, business: ME.biz, abn: ME.abn,
-                           prefer: how, mobile: mobile, page: 'start' })
-  }).then(function (r) {
+  /* On the real site the request goes straight to the form that was made for this page.
+     Anywhere else it goes to the endpoint on this machine, and a shared preview reaches
+     neither, so a preview can never create a real person in the system. */
+  const onSite = /(^|\.)paysauce\.com$/.test(location.hostname);
+  const send = onSite
+    ? fetch('https://api.hsforms.com/submissions/v3/integration/submit/' +
+            PS_FORM.portal + '/' + PS_FORM.id, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: [['email', ME.email], ['firstname', ME.name], ['company', ME.biz],
+                   ['phone', mobile]].filter(function (f) { return f[1]; })
+                  .map(function (f) { return { objectTypeId: '0-1', name: f[0], value: f[1] }; }),
+          context: { pageUri: location.href, pageName: 'Get started' }
+        })
+      })
+    : fetch('/__lead', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: ME.name, email: ME.email, business: ME.biz, abn: ME.abn,
+                               prefer: how, mobile: mobile, page: 'start' })
+      });
+  send.then(function (r) {
       if (!r.ok) throw new Error(r.status);
       /* only once the request really left. A preview copy never reaches here. */
       T.fire('Lead', { prefer: how, content_name: 'get started page' });
@@ -1242,6 +1378,59 @@ askBtn.addEventListener('click', function () {
     });
 });
 refreshAsk();
+
+/* ===== the feedback note =================================================
+   Two steps on purpose: say the thing first, give your name second, because
+   asking who you are before asking what you think loses the thing you think. */
+(function () {
+  const wrap = document.getElementById('fbwrap');
+  const box  = document.getElementById('fb-text');
+  const step = k => wrap.querySelectorAll('.fbstep').forEach(e => e.classList.toggle('on', e.dataset.fb === k));
+  const open = on => { wrap.hidden = !on; if (on) { step('say'); box.focus(); } };
+
+  document.getElementById('fbtn').onclick = () => { open(true); T.fire('StartFeedbackOpened'); };
+  document.getElementById('fbx').onclick  = () => open(false);
+  wrap.addEventListener('click', e => { if (e.target === wrap) open(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !wrap.hidden) open(false); });
+
+  box.addEventListener('input', function () {
+    document.getElementById('fb-next').disabled = box.value.trim().length < 3;
+  });
+  document.getElementById('fb-next').onclick = () => step('who');
+
+  function send() {
+    const note = {
+      comment: box.value.trim(),
+      name:  document.getElementById('fb-name').value.trim(),
+      email: document.getElementById('fb-mail').value.trim(),
+      screen: (sc.querySelector('[data-s].on') || {}).dataset ? sc.querySelector('[data-s].on').dataset.s : '',
+      score: T.score(), page: location.href
+    };
+    step('done');
+    T.fire('StartFeedbackSent');
+    /* This one sends from anywhere, including a shared preview, because a note from someone
+       reviewing it is the whole point. A note with no email address creates no person in the
+       system, so leaving the details out really does leave them out. */
+    const where = 'Left on the "' + note.screen + '" step. Intent score ' + note.score + '.\n' + note.page;
+    const fields = [['message', note.comment + '\n\n---\n' + where]];
+    if (note.name)  fields.push(['firstname', note.name]);
+    if (note.email) fields.push(['email', note.email]);
+    fetch('https://api.hsforms.com/submissions/v3/integration/submit/' +
+          PS_FORM.portal + '/' + PS_FEEDBACK_FORM, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: fields.map(function (f) { return { objectTypeId: '0-1', name: f[0], value: f[1] }; }),
+        context: { pageUri: location.href, pageName: 'Get started feedback' }
+      })
+    }).then(function (r) { if (!r.ok) throw new Error(r.status); })
+      .catch(function () {
+        document.getElementById('fb-done').textContent =
+          'This is a preview, so nothing was actually sent.';
+      });
+  }
+  document.getElementById('fb-send').onclick = send;
+  document.getElementById('fb-skip').onclick = send;
+})();
 
 /* ===== intent signals: wiring =============================================
    Everything below only listens. No behaviour on the page changes. Six places
