@@ -76,8 +76,11 @@
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
   /* the little that is left of the nav */
-  .top { position:relative; z-index:3; display:flex; align-items:center; justify-content:space-between;
-         padding:22px clamp(18px,4vw,40px); gap:16px; }
+  /* The header floats over the page. Nothing below it moves when its height changes,
+     so the block underneath sits in the middle of the viewport, not the middle of
+     whatever is left over. */
+  .top { position:absolute; top:0; left:0; right:0; z-index:3; display:flex; align-items:center;
+         justify-content:space-between; padding:22px clamp(18px,4vw,40px); gap:16px; }
   /* ---- the logo, exactly as the live site builds it ----------------------
      a.logo > .logo-lockup > .logo-mark (34x34 squircle, splodge masked out)
      + img.logo-word (89x23, turned black by the same filter the live site uses).
@@ -96,11 +99,16 @@
   .backbtn svg { width:13px; height:13px; }
 
   /* the middle */
-  .wrap { position:relative; z-index:2; flex:1; display:flex; flex-direction:column; align-items:center;
-          padding:clamp(18px,3vh,44px) clamp(18px,4vw,40px) clamp(26px,4vh,52px); width:100%; }
+  .wrap { position:relative; z-index:2; flex:1; min-height:100dvh; display:flex; flex-direction:column;
+          align-items:center; justify-content:center; width:100%;
+          /* top and bottom match, so centred here is centred in the viewport. The top
+             figure clears the floating header. */
+          padding:clamp(84px,11vh,112px) clamp(18px,4vw,40px); }
+  /* a short window must not clip the top of the block */
+  @supports (justify-content:safe center) { .wrap { justify-content:safe center; } }
   .lede { text-align:center; max-width:640px; margin-bottom:clamp(20px,3vh,32px); }
   .kicker { font-size:14px; font-weight:400; letter-spacing:.04em; color:var(--chilli); margin-bottom:12px; }
-  h1 { font-family:var(--display); font-weight:800; font-size:clamp(32px,5vw,56px);
+  h1 { font-family:var(--display); font-weight:800; font-size:clamp(30px,4.4vw,48px);
        line-height:1.05; letter-spacing:-.025em; color:var(--heading); }
   h1 em { font-style:normal; }
 
@@ -121,7 +129,8 @@
     .top { padding:14px 18px; }
     .logo-mark-svg { width:30px; height:30px; }
     .logo-word { width:78px; height:20px; }
-    .wrap { padding:6px 0 0; }
+    .top { position:relative; }
+    .wrap { min-height:0; justify-content:flex-start; padding:6px 0 0; }
     .lede { padding:0 22px; margin-bottom:22px; }
     /* the card stops being a card and becomes the screen */
     .ph { max-width:none; border-radius:22px 22px 0 0; border-left:0; border-right:0; border-bottom:0;
@@ -416,7 +425,7 @@
 
   /* Prototype scaffolding. It belongs on the prototype, not on a page. */
   .tools, .nowrap-note { display:none !important; }
-  .wrap { padding-bottom:clamp(40px,6vh,72px); }
+
 </style>
 </head>
 <body>
@@ -434,7 +443,7 @@
 
 <main class="wrap">
   <div class="lede">
-    <div class="kicker">Get started</div>
+    <div class="kicker">Get started with PaySauce</div>
     <h1>Let's get you <em>set up</em>.</h1>
   </div>
     <div class="ph"><div class="sc" id="sc">
