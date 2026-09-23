@@ -169,8 +169,9 @@
   .mobfield { display:flex; align-items:stretch; border:1px solid var(--n100); border-radius:14px;
               background:#fff; overflow:hidden; transition:border-color .16s ease, box-shadow .16s ease; }
   .mobfield:focus-within { border-color:var(--chilli); box-shadow:0 0 0 3px rgba(216,71,39,.12); }
-  .mobfield .pre { display:flex; align-items:center; padding:0 14px; font-size:16px; font-weight:600;
-                   color:var(--n700); background:var(--n-soft); border-right:1px solid var(--n100); }
+  .mobfield .pre { width:68px; flex:none; padding:0 10px; font-size:16px; font-weight:600;
+                   font-family:var(--text); color:var(--n700); background:var(--n-soft);
+                   border:0; border-right:1px solid var(--n100); outline:0; text-align:center; }
   .mobfield input { flex:1; min-width:0; border:0; outline:0; background:transparent; padding:14px 16px;
                     font-family:var(--text); font-size:16px; color:var(--n900); }
   .mobfield input::placeholder { color:var(--n-mut); }
@@ -445,10 +446,10 @@
           <div class="nh">Let's get you set up.</div>
           <div class="nsub">Three quick steps, then you're into PaySauce.</div>
           <div class="nlab" id="l-name">Your name</div>
-          <input class="nin" id="f-name" type="text" placeholder="Priya" aria-labelledby="l-name" autocomplete="name">
+          <input class="nin" id="f-name" type="text" placeholder="Sam" aria-labelledby="l-name" autocomplete="name">
           <div class="nlab" id="l-mail">Email</div>
           <input class="nin" id="f-mail" type="email" placeholder="you@example.com" aria-labelledby="l-mail" autocomplete="email">
-          <div class="nbtn" data-go="biz">Continue</div>
+          <div class="nbtn" data-go="biz" disabled aria-disabled="true">Continue</div>
         </div>
       </div>
 
@@ -572,11 +573,11 @@
           <div class="mobwrap" id="mobwrap" hidden>
             <div class="nlab" id="l-mob">Mobile number</div>
             <div class="mobfield">
-              <span class="pre">+61</span>
+              <input class="pre" id="f-cc" type="tel" inputmode="tel" value="+61" maxlength="4" aria-label="Country calling code">
               <input id="f-mob" type="tel" inputmode="numeric" placeholder="412 345 678"
                      aria-labelledby="l-mob" autocomplete="tel-national">
             </div>
-            <p class="moberr" id="mob-err" hidden>That does not look like an Australian mobile.</p>
+            <p class="moberr" id="mob-err" hidden>That does not look like a mobile number.</p>
           </div>
           <button class="nbtn" type="button" id="askbtn">Ask for help</button>
           <div class="nfoot">Most people hear back the same working day.</div>
@@ -656,15 +657,191 @@
     <div class="tools"><a id="reset">Start again</a></div>
 </main>
 <script>
+/* ===== intent signals =====================================================
+   This page is one web address with nine screens. A screen change is NOT a
+   page load, so an ad platform sees one view and nothing else unless every
+   step is reported by hand. This block reports them.
+
+   Nothing is sent unless the host page already loads a tag. A preview copy
+   has no tag, so events only appear in the on-screen readout. Add ?events=1
+   to the web address to switch that readout on.
+
+   The value carried on each event is an INTENT SCORE, not money. It is a
+   ranking chosen to separate a deep visit from a shallow one. Do not read it
+   as dollars. Turning it into real money needs a customer value figure we do
+   not have.
+   ========================================================================= */
+const T = (function () {
+
+  /* how far down the page each signal sits */
+  const PTS = {
+    StartOpened: 0, StartFormStarted: 2, StartNameGiven: 4, StartEmailGiven: 7,
+    StartStep1Complete: 10, StartBusinessStep: 12, StartBusinessTyped: 14,
+    StartBusinessNoMatches: 14, StartBusinessMatches: 16, StartBusinessPicked: 18,
+    StartBusinessTypedUsed: 14, StartBusinessSkipped: 12, StartConfirmStep: 20,
+    StartBusinessConfirmed: 20, StartConfirmSkipped: 15, StartChecklist: 25,
+    StartProductView: 8, StartWantHelp: 40, StartHelpStep: 42, StartBookDemo: 55,
+    StartReachStep: 50, StartReachEmail: 52, StartReachText: 55, StartMobileTyped: 58,
+    StartMobileInvalid: 55, StartAskClicked: 65, StartDone: 70, StartWaiting: 100,
+    Lead: 70, InitiateCheckout: 100
+  };
+
+  /* extras that stack on top of the ladder, each counted once */
+  const BONUS = {
+    StartBusinessConfirmed: 25, StartMobileValid: 10, StartAbnCopied: 5,
+    StartHelpOpened: 3, StartBackFromProduct: 10, StartBouncedBack: 5,
+    StartReturnVisit: 15
+  };
+  const BONUS_LIMIT = { StartHelpOpened: 3 };
+
+  /* the two that use the platform's own names, so they can be optimised towards
+     without setting anything up first */
+  const STANDARD = { Lead: 1, InitiateCheckout: 1 };
+
+  const seen = {}, bonusCount = {};
+  let depth = 0, extra = 0, furthest = 'opened';
+  const log = [];
+  window.psEvents = log;
+
+  /* ---- the ad click, kept for the whole visit --------------------------- */
+  const KEYS = ['fbclid', 'gclid', 'gbraid', 'wbraid', 'msclkid', 'ttclid', 'li_fat_id',
+                'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+  const CLICK = {};
+  (function () {
+    let store = {};
+    try { store = JSON.parse(sessionStorage.getItem('ps_click') || '{}'); } catch (e) {}
+    const q = new URLSearchParams(location.search);
+    KEYS.forEach(function (k) { const v = q.get(k); if (v) store[k] = v; });
+    if (document.referrer && !store.referrer) store.referrer = document.referrer;
+    Object.assign(CLICK, store);
+    try { sessionStorage.setItem('ps_click', JSON.stringify(store)); } catch (e) {}
+  })();
+  function cookie(n) {
+    const m = document.cookie.match('(^|;)\\s*' + n + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+
+  /* ---- who they are, built up as they fill things in -------------------- */
+  const USER = { country: 'au' };
+  function setUser(u) {
+    Object.keys(u).forEach(function (k) { if (u[k]) USER[k] = String(u[k]).trim().toLowerCase(); });
+    /* the tag hashes these itself, so they are handed over in plain form */
+    if (window.fbq) {
+      try {
+        (fbq.getState().pixels || []).forEach(function (p) { fbq('init', p.id, USER); });
+      } catch (e) {}
+    }
+    push({ event: 'ps_user_data', user_data: USER });
+  }
+
+  function push(o) {
+    window.dataLayer = window.dataLayer || [];
+    try { window.dataLayer.push(o); } catch (e) {}
+  }
+
+  /* ---- send one signal --------------------------------------------------- */
+  function fire(name, params, opts) {
+    opts = opts || {};
+    if (!opts.repeat && seen[name]) return;
+    if (BONUS[name]) {
+      const lim = BONUS_LIMIT[name] || 1;
+      bonusCount[name] = (bonusCount[name] || 0) + 1;
+      if (bonusCount[name] > lim) return;
+      extra += BONUS[name];
+    }
+    seen[name] = (seen[name] || 0) + 1;
+    if (PTS[name] != null && PTS[name] > depth) { depth = PTS[name]; furthest = name; }
+
+    const score = depth + extra;
+    const id = name + '.' + Date.now() + '.' + Math.random().toString(36).slice(2, 8);
+    const p = Object.assign({
+      value: score,
+      step_points: PTS[name] != null ? PTS[name] : (BONUS[name] || 0),
+      intent_score: score,
+      furthest_step: furthest,
+      value_is: 'intent_points_not_money'
+    }, CLICK, params || {});
+
+    if (window.fbq) {
+      try { fbq(STANDARD[name] ? 'track' : 'trackCustom', name, p, { eventID: id }); } catch (e) {}
+    }
+    push(Object.assign({ event: name, event_id: id }, p));
+
+    log.push({ t: new Date().toTimeString().slice(0, 8), name: name, pts: p.step_points, score: score });
+    if (readout) draw();
+    return id;
+  }
+
+  /* ---- the on-screen readout, only with ?events=1 ------------------------ */
+  const readout = new URLSearchParams(location.search).get('events') === '1' ? build() : null;
+  function build() {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:9999;width:300px;max-height:60vh;' +
+      'overflow:auto;background:#1a1a18;color:#EDEDEA;font:12px/1.45 ui-monospace,Menlo,monospace;' +
+      'padding:10px 12px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35)';
+    document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(d); });
+    if (document.body) document.body.appendChild(d);
+    return d;
+  }
+  function draw() {
+    readout.innerHTML = '<div style="font-weight:700;margin-bottom:6px">Intent score ' +
+      (depth + extra) + '<span style="float:right;opacity:.6">' + log.length + ' events</span></div>' +
+      log.slice(-18).map(function (r) {
+        return '<div style="display:flex;gap:8px"><span style="opacity:.5">' + r.t +
+          '</span><span style="flex:1">' + r.name + '</span><span style="opacity:.6">+' +
+          r.pts + '</span></div>';
+      }).join('');
+  }
+
+  /* ---- screens ----------------------------------------------------------- */
+  const SCREEN = {
+    signup: 'StartOpened', biz: 'StartBusinessStep', confirm: 'StartConfirmStep',
+    need: 'StartChecklist', waiting: 'StartWaiting', help: 'StartHelpStep',
+    reach: 'StartReachStep', reachdone: 'StartDone', product: 'StartProductView'
+  };
+  let atScreen = 'signup';
+  function screen(k) {
+    /* coming back to the list after the sign-up tab opened means they retreated */
+    if (atScreen === 'waiting' && k === 'need') fire('StartBouncedBack');
+    if (atScreen === 'product' && k === 'need') fire('StartBackFromProduct');
+    atScreen = k;
+    if (SCREEN[k]) fire(SCREEN[k]);
+  }
+
+  /* ---- a second visit ---------------------------------------------------- */
+  try {
+    const last = +(localStorage.getItem('ps_seen') || 0);
+    if (last && Date.now() - last > 30 * 60 * 1000) fire('StartReturnVisit');
+    localStorage.setItem('ps_seen', String(Date.now()));
+  } catch (e) {}
+
+  /* ---- the last word before they leave ----------------------------------- */
+  function bye() {
+    if (seen.StartExit) return;
+    seen.StartExit = 1;
+    const p = Object.assign({ value: depth + extra, intent_score: depth + extra,
+                              furthest_step: furthest, events_fired: log.length,
+                              value_is: 'intent_points_not_money' }, CLICK);
+    if (window.fbq) { try { fbq('trackCustom', 'StartExit', p); } catch (e) {} }
+    push(Object.assign({ event: 'StartExit' }, p));
+  }
+  addEventListener('pagehide', bye);
+  addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') bye(); });
+
+  return { fire: fire, screen: screen, setUser: setUser, click: CLICK,
+           score: function () { return depth + extra; } };
+})();
+
 const sc = document.getElementById('sc');
 const show = k => {
   sc.querySelectorAll('[data-s]').forEach(e => e.classList.toggle('on', e.dataset.s === k));
+  T.screen(k);
   /* the product link sits under the card, and only while they are still deciding */
   document.getElementById('undercard').classList.toggle('hide', k !== 'need');
 };
 sc.addEventListener('click', e => {
   const t = e.target.closest('[data-go],[data-href]');
-  if (!t) return;
+  if (!t || t.hasAttribute('disabled')) return;
   e.preventDefault();
   /* A destination is a real page. It opens in a new tab and this one stays where it is. */
   if (t.dataset.href) window.open(t.dataset.href, '_blank', 'noopener');
@@ -866,10 +1043,17 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 /* ---- step 1 answers are remembered, and said back later ------------------ */
 const nameIn = document.getElementById('f-name');
 const mailIn = document.getElementById('f-mail');
+const goBiz = sc.querySelector('.nbtn[data-go="biz"]');
+const looksLikeEmail = v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((v || '').trim());
+
 function remember() {
   ME.name  = (nameIn.value || '').trim();
   ME.email = (mailIn.value || '').trim();
   document.getElementById('r-email').textContent = ME.email || 'you@example.com';
+  /* Step 1 exists to get the email. Without one the later screens have nothing to
+     send to, so there is nothing to continue to. */
+  goBiz.toggleAttribute('disabled', !looksLikeEmail(ME.email));
+  goBiz.setAttribute('aria-disabled', String(!looksLikeEmail(ME.email)));
   refreshAsk();
 }
 nameIn.addEventListener('input', remember);
@@ -885,12 +1069,28 @@ const mobErr  = document.getElementById('mob-err');
 const doneLine = document.getElementById('done-line');
 let how = 'email';
 
-function auMobile(v) {
-  const d = (v || '').replace(/\D/g, '').replace(/^61/, '').replace(/^0/, '');
-  return d.length === 9 && d[0] === '4' ? '+61 ' + d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : null;
+const ccIn = document.getElementById('f-cc');
+function countryCode() { return (ccIn.value || '').replace(/\D/g, '') || '61'; }
+
+/* Australian rule for an Australian number. An Australian business can be run by
+   someone carrying a number from anywhere, so any other code is accepted on length
+   alone. We do not know the local rule and should not invent one. */
+function mobileNumber(v) {
+  const cc = countryCode();
+  const d = (v || '').replace(/\D/g, '').replace(new RegExp('^' + cc), '').replace(/^0/, '');
+  if (cc === '61') {
+    return d.length === 9 && d[0] === '4' ? '+61 ' + d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : null;
+  }
+  return d.length >= 6 && d.length <= 14 ? '+' + cc + ' ' + d : null;
 }
+ccIn.addEventListener('input', function () {
+  ccIn.value = '+' + ccIn.value.replace(/\D/g, '').slice(0, 3);
+  mobErr.hidden = true;
+  refreshAsk();
+});
+ccIn.addEventListener('blur', function () { ccIn.value = '+' + countryCode(); });
 function refreshAsk() {
-  askBtn.disabled = how === 'email' ? !ME.email : !auMobile(mobIn.value);
+  askBtn.disabled = how === 'email' ? !ME.email : !mobileNumber(mobIn.value);
 }
 sc.querySelectorAll('[data-how]').forEach(function (b) {
   b.addEventListener('click', function () {
@@ -904,22 +1104,28 @@ sc.querySelectorAll('[data-how]').forEach(function (b) {
 });
 mobIn.addEventListener('input', function () {
   /* the field already says +61, so a leading 0 is dropped and it groups 412 345 678 */
-  const d = mobIn.value.replace(/\D/g, '').replace(/^61/, '').replace(/^0/, '').slice(0, 9);
-  mobIn.value = d.replace(/^(\d{0,3})(\d{0,3})(\d{0,3}).*$/, function (m, a, b2, c) {
-    return [a, b2, c].filter(Boolean).join(' ');
-  });
+  const cc = countryCode();
+  let d = mobIn.value.replace(/\D/g, '').replace(new RegExp('^' + cc), '').replace(/^0/, '');
+  if (cc === '61') {
+    d = d.slice(0, 9);
+    mobIn.value = d.replace(/^(\d{0,3})(\d{0,3})(\d{0,3}).*$/, function (m, a, b2, c) {
+      return [a, b2, c].filter(Boolean).join(' ');
+    });
+  } else {
+    mobIn.value = d.slice(0, 14);
+  }
   mobErr.hidden = true;
   refreshAsk();
 });
 mobIn.addEventListener('blur', function () {
-  mobErr.hidden = !(mobIn.value.trim() && !auMobile(mobIn.value));
+  mobErr.hidden = !(mobIn.value.trim() && !mobileNumber(mobIn.value));
 });
 
 /* The request goes to our own endpoint, which is the one place that decides where it
    lands. Nothing about the destination is in this page. */
 askBtn.addEventListener('click', function () {
   if (askBtn.disabled) return;
-  const mobile = how === 'text' ? auMobile(mobIn.value) : '';
+  const mobile = how === 'text' ? mobileNumber(mobIn.value) : '';
   doneLine.textContent = how === 'text'
     ? 'A payroll person will text ' + mobile + '. Most people hear back the same working day.'
     : 'A payroll person will email ' + (ME.email || 'you') + '. Most people hear back the same working day.';
@@ -928,13 +1134,119 @@ askBtn.addEventListener('click', function () {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: ME.name, email: ME.email, business: ME.biz, abn: ME.abn,
                            prefer: how, mobile: mobile, page: 'start' })
-  }).then(function (r) { if (!r.ok) throw new Error(r.status); })
+  }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      /* only once the request really left. A preview copy never reaches here. */
+      T.fire('Lead', { prefer: how, content_name: 'get started page' });
+    })
     .catch(function () {
       /* Nothing to send to from a shared copy. Say so rather than pretending it went. */
       doneLine.textContent = 'This is a preview, so nothing was actually sent.';
     });
 });
 refreshAsk();
+
+/* ===== intent signals: wiring =============================================
+   Everything below only listens. No behaviour on the page changes. Six places
+   carry the whole set: the screen switch, one click listener, the business
+   pick, the confirm buttons, the reach choice and the ask button.
+   ========================================================================= */
+(function () {
+
+  /* ---- step 1: name and email --------------------------------------------
+     Each field handed over is another way for the ad platform to recognise
+     the person, so the event is sent the moment the field is usable. */
+  [nameIn, mailIn].forEach(function (el) {
+    el.addEventListener('input', function () { if (el.value.trim()) T.fire('StartFormStarted'); });
+  });
+  nameIn.addEventListener('blur', function () {
+    const v = nameIn.value.trim(); if (!v) return;
+    const bits = v.split(/\s+/);
+    T.setUser({ fn: bits[0], ln: bits.slice(1).join(' ') });
+    T.fire('StartNameGiven');
+  });
+  mailIn.addEventListener('blur', function () {
+    const v = mailIn.value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return;
+    T.setUser({ em: v });
+    T.fire('StartEmailGiven');
+  });
+
+  /* ---- one listener for every button on the card -------------------------- */
+  const qseen = {};
+  sc.addEventListener('click', function (e) {
+    const q    = e.target.closest('[data-q]');
+    const copy = e.target.closest('.copy');
+    const href = e.target.closest('[data-href]');
+    const go   = e.target.closest('[data-go]');
+    const back = e.target.closest('.nback');
+
+    if (q && !qseen[q.dataset.q]) {
+      qseen[q.dataset.q] = 1;
+      T.fire('StartHelpOpened', { which: q.dataset.q }, { repeat: true });
+    }
+    if (copy) T.fire('StartAbnCopied');
+    if (href && href.dataset.href.indexOf('signup') > -1) T.fire('InitiateCheckout', { content_name: 'get started page' });
+    if (href && href.dataset.href.indexOf('book-a-demo') > -1) T.fire('StartBookDemo');
+    if (go && !back) {
+      if (go.dataset.go === 'biz' && go.classList.contains('nbtn') &&
+          !go.hasAttribute('disabled')) T.fire('StartStep1Complete');
+      if (go.dataset.go === 'need' && go.classList.contains('nlink')) T.fire('StartBusinessSkipped');
+      if (go.dataset.go === 'help') T.fire('StartWantHelp');
+    }
+  });
+
+  /* ---- find your business ------------------------------------------------- */
+  bizIn.addEventListener('input', function () {
+    if (bizIn.value.trim().length >= 2) T.fire('StartBusinessTyped');
+  });
+
+  const _render = render;
+  render = function (list, v, isLive) {
+    T.fire(list.length ? 'StartBusinessMatches' : 'StartBusinessNoMatches',
+           { matches: list.length, from_register: isLive ? 1 : 0 });
+    return _render(list, v, isLive);
+  };
+
+  let chosen = null;
+  const _pick = pick;
+  pick = function (h) {
+    chosen = h;
+    T.fire('StartBusinessPicked', { business_type: h.type || '' });
+    return _pick(h);
+  };
+
+  const _useTyped = useTyped;
+  useTyped = function (v) { T.fire('StartBusinessTypedUsed'); return _useTyped(v); };
+
+  /* ---- is this you -------------------------------------------------------
+     A confirmed match is the strongest quality signal on the page: the
+     register says this is a real trading business. It also hands over the
+     state and postcode, which are two more ways to recognise the person. */
+  document.getElementById('c-yes').addEventListener('click', function () {
+    const place = ((chosen && chosen.place) || '').split(/\s+/);
+    T.setUser({ st: place[0] || '', zp: place[1] || '' });
+    T.fire('StartBusinessConfirmed', { business_type: (chosen && chosen.type) || '' });
+  });
+  document.getElementById('c-skip').addEventListener('click', function () {
+    T.fire('StartConfirmSkipped');
+  });
+
+  /* ---- how should we reach you -------------------------------------------- */
+  sc.querySelectorAll('[data-how]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      T.fire(b.dataset.how === 'text' ? 'StartReachText' : 'StartReachEmail');
+    });
+  });
+  mobIn.addEventListener('input', function () { if (mobIn.value.trim()) T.fire('StartMobileTyped'); });
+  mobIn.addEventListener('blur', function () {
+    const v = mobIn.value.trim(); if (!v) return;
+    const ok = mobileNumber(v);
+    if (ok) { T.setUser({ ph: ok.replace(/\D/g, '') }); T.fire('StartMobileValid'); }
+    else T.fire('StartMobileInvalid');
+  });
+  askBtn.addEventListener('click', function () { if (!askBtn.disabled) T.fire('StartAskClicked'); });
+})();
 
 </script>
 </body>
