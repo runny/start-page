@@ -495,8 +495,10 @@
     #sheet { grid-row:2; }
   }
 
-  /* With the business step out, the flow is two steps, so the last progress mark goes too. */
-  html.no-biz-step .nprog i:last-child { display:none; }
+  /* Without a key there is no list to pick from, so the list goes and a Continue takes its place. */
+  #biz-go { display:none; }
+  html.no-lookup #biz-go { display:block; }
+  html.no-lookup #matches { display:none; }
 
   /* A quiet way to say something is wrong. Low contrast on purpose: it should be findable
      without competing with anything on the page. */
@@ -572,11 +574,12 @@
         <div class="nwrap">
           <div class="nback" data-go="signup">&lsaquo; Back</div>
           <div class="nprog"><i class="on"></i><i class="on"></i><i></i></div>
-          <div class="nh">Find your business</div>
-          <div class="nsub">Type the name and pick yourself from the list. This saves you digging out your ABN later.</div>
+          <div class="nh" id="biz-h">Find your business</div>
+          <div class="nsub" id="biz-sub">Type the name and pick yourself from the list. This saves you digging out your ABN later.</div>
           <input class="nin" id="f-biz" type="text" placeholder="Harbour Coffee, or your ABN"
                  aria-label="Your business name or ABN" autocomplete="organization">
           <div id="matches"></div>
+          <div class="nbtn" id="biz-go" disabled aria-disabled="true">Continue</div>
           <div class="nlink" data-go="need">Skip for now</div>
         </div>
       </div>
@@ -831,11 +834,18 @@ const PS_FEEDBACK_FORM = '53bba5a4-b01e-4866-8906-0970d3cf5777';
    page and the step comes back on its own. A preview keeps the step, with its results plainly
    marked as examples, so it can still be looked at and shown to people. */
 const PS_LIVE = /(^|\.)paysauce\.com$/.test(location.hostname);
-const PS_BIZ_STEP = !PS_LIVE || !!window.PS_ABR_GUID;
-if (!PS_BIZ_STEP) document.documentElement.classList.add('no-biz-step');
-if (!PS_BIZ_STEP) addEventListener('DOMContentLoaded', function () {
-  const n = document.getElementById('stepcount');
-  if (n) n.textContent = "Two quick steps, then you're into PaySauce.";
+/* The register can only be asked with a key. Until one arrives the step stays, because it is
+   the same step and it is well liked; it just takes the name as typed instead of matching it.
+   When the key is put on the page the matching comes back in place, and nobody sees the shape
+   of the flow change. A preview keeps the full version with results marked as examples. */
+const PS_LOOKUP = !PS_LIVE || !!window.PS_ABR_GUID;
+if (!PS_LOOKUP) document.documentElement.classList.add('no-lookup');
+if (!PS_LOOKUP) addEventListener('DOMContentLoaded', function () {
+  document.getElementById('biz-h').textContent = "What's your business called?";
+  document.getElementById('biz-sub').textContent =
+    "So we know who we are talking to. You can change it later.";
+  document.getElementById('f-biz').placeholder = 'Harbour Coffee';
+  document.getElementById('f-biz').setAttribute('aria-label', 'Your business name');
 });
 
 /* ===== intent signals =====================================================
@@ -1033,11 +1043,6 @@ sc.addEventListener('click', e => {
   const t = e.target.closest('[data-go],[data-href]');
   if (!t || t.hasAttribute('disabled')) return;
   e.preventDefault();
-  /* nothing routes into the business step while it is out */
-  if (!PS_BIZ_STEP && (t.dataset.go === 'biz' || t.dataset.go === 'confirm')) {
-    if (t.classList.contains('nback')) return show('signup');
-    return show('need');
-  }
   /* A destination is a real page. It opens in a new tab and this one stays where it is. */
   if (t.dataset.href) window.open(t.dataset.href, '_blank', 'noopener');
   if (t.dataset.go) show(t.dataset.go);
@@ -1061,6 +1066,12 @@ bizIn.addEventListener('keydown', e => {
 
 async function findBiz() {
   const v = bizIn.value.trim();
+  if (!PS_LOOKUP) {                       /* nothing to match against, so nothing is offered */
+    const go = document.getElementById('biz-go');
+    go.toggleAttribute('disabled', v.length < 2);
+    go.setAttribute('aria-disabled', String(v.length < 2));
+    return;
+  }
   if (v.length < 2) { matchBox.innerHTML = ''; return; }
   matchBox.innerHTML = '<div class="mhead"><span>Looking&hellip;</span></div>';
 
@@ -1192,6 +1203,11 @@ sc.addEventListener('click', function (e) {
   copyText(n);
   c.classList.add('done');
   setTimeout(function () { c.classList.remove('done'); }, 1600);
+});
+
+document.getElementById('biz-go').addEventListener('click', function () {
+  if (this.hasAttribute('disabled')) return;
+  useTyped(titleCase(bizIn.value));
 });
 
 document.getElementById('reset').onclick = () => show('signup');
