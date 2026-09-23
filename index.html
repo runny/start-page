@@ -177,7 +177,8 @@
   .mobfield input::placeholder { color:var(--n-mut); }
   .moberr { font-size:14px; color:var(--chilli); margin-top:8px; }
   .moberr[hidden] { display:none; }
-  .nbtn[disabled] { opacity:.45; cursor:not-allowed; box-shadow:none; }
+  /* measured off the live site: .ps-book__card.loading .ps-btn */
+  .nbtn[disabled] { opacity:.6; pointer-events:none; }
 
   /* find your business */
   input.nin { display:block; width:100%; outline:0; font-family:var(--text); color:var(--n900);
