@@ -158,6 +158,26 @@
   /* a lone quiet link is the step's action, so it sits at the foot like a button would */
   .nwrap > .nlink:last-child { margin-top:auto; padding-top:20px; }
 
+  /* how should we reach you */
+  button.nopt { width:100%; text-align:left; cursor:pointer; font-family:var(--text);
+                transition:border-color .16s ease, box-shadow .16s ease; }
+  button.nopt:hover { border-color:var(--n300); }
+  button.nopt:focus-visible { outline:2px solid var(--chilli); outline-offset:2px; }
+  button.nopt[aria-pressed="true"] { border-color:var(--chilli); box-shadow:0 0 0 3px rgba(216,71,39,.12); }
+  .mobwrap { margin-top:18px; }
+  .mobwrap[hidden] { display:none; }
+  .mobfield { display:flex; align-items:stretch; border:1px solid var(--n100); border-radius:14px;
+              background:#fff; overflow:hidden; transition:border-color .16s ease, box-shadow .16s ease; }
+  .mobfield:focus-within { border-color:var(--chilli); box-shadow:0 0 0 3px rgba(216,71,39,.12); }
+  .mobfield .pre { display:flex; align-items:center; padding:0 14px; font-size:16px; font-weight:600;
+                   color:var(--n700); background:var(--n-soft); border-right:1px solid var(--n100); }
+  .mobfield input { flex:1; min-width:0; border:0; outline:0; background:transparent; padding:14px 16px;
+                    font-family:var(--text); font-size:16px; color:var(--n900); }
+  .mobfield input::placeholder { color:var(--n-mut); }
+  .moberr { font-size:14px; color:var(--chilli); margin-top:8px; }
+  .moberr[hidden] { display:none; }
+  .nbtn[disabled] { opacity:.45; cursor:not-allowed; box-shadow:none; }
+
   /* find your business */
   input.nin { display:block; width:100%; outline:0; font-family:var(--text); color:var(--n900);
               -webkit-appearance:none; appearance:none; }
@@ -186,13 +206,12 @@
      carry it across. Nothing is stored and nothing is passed through on their behalf. */
   .nitem.abnrow { display:block; }
   .abntop { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-  .nitem.abnrow.done { border-color:#DCFCE7; background:#F7FDF9; }
   .abnrow .got { display:none; font-size:13px; font-weight:600; color:#3f5c05; background:#f4f8e4;
                  border:1px solid #e3edc4; border-radius:999px; padding:4px 11px; white-space:nowrap; }
   .abnrow.done .got { display:inline-block; }
   .abnrow.done .qbtn { display:none; }
   .nitem.abnrow .abnval { display:none; align-items:center; justify-content:space-between; gap:10px; margin-top:10px;
-            padding-top:11px; border-top:1px solid #DCFCE7; }
+            padding-top:11px; border-top:1px solid var(--n100); }
   .nitem.abnrow.done .abnval { display:flex; }
   .abnnum { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:16px; letter-spacing:.06em;
             color:var(--heading); }
@@ -544,9 +563,22 @@
           <div class="nback" data-go="help">&lsaquo; Back</div>
           <div class="nh">How should we reach you?</div>
           <div class="nsub">We have your email already.</div>
-          <div class="nopt pri"><h4>Email</h4><p>priya@harbourcoffee.com.au</p></div>
-          <div class="nopt"><h4>Text me</h4><p>Add a mobile number</p></div>
-          <div class="nbtn" data-go="reachdone">Ask for help</div>
+          <button class="nopt" type="button" data-how="email" aria-pressed="true">
+            <h4>Email</h4><p id="r-email">you@example.com</p>
+          </button>
+          <button class="nopt" type="button" data-how="text" aria-pressed="false">
+            <h4>Text me</h4><p>We will text you to arrange a time</p>
+          </button>
+          <div class="mobwrap" id="mobwrap" hidden>
+            <div class="nlab" id="l-mob">Mobile number</div>
+            <div class="mobfield">
+              <span class="pre">+61</span>
+              <input id="f-mob" type="tel" inputmode="numeric" placeholder="412 345 678"
+                     aria-labelledby="l-mob" autocomplete="tel-national">
+            </div>
+            <p class="moberr" id="mob-err" hidden>That does not look like an Australian mobile.</p>
+          </div>
+          <button class="nbtn" type="button" id="askbtn">Ask for help</button>
           <div class="nfoot">Most people hear back the same working day.</div>
         </div>
       </div>
@@ -555,7 +587,7 @@
         <div class="bar"><span>9:41</span><span class="r">&#9646;&#9646;&#9646;</span></div>
         <div class="nwrap" style="justify-content:center;display:flex;flex-direction:column;text-align:center">
           <div class="nh">We'll be in touch.</div>
-          <div class="nsub">A payroll person will email priya@harbourcoffee.com.au. Most people hear back the same working day.</div>
+          <div class="nsub" id="done-line">A payroll person will email you. Most people hear back the same working day.</div>
           <div class="nbtn sec" data-go="need">Back to what you'll need</div>
         </div>
       </div>
@@ -642,7 +674,7 @@ sc.addEventListener('click', e => {
 /* Find your business. The real build asks the free government business register
    (ABN Lookup) through a small server endpoint, so the access key never sits in the page.
    Without that endpoint the results below are made up, and the screen says so. */
-const ME = { biz:'', abn:'', haveAbn:false };
+const ME = { name:'', email:'', biz:'', abn:'', haveAbn:false };
 const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const titleCase = t => t.replace(/\s+/g,' ').trim().replace(/\b\w/g, m => m.toUpperCase());
 
@@ -830,6 +862,80 @@ sheet.addEventListener('click', e => {
 });
 document.getElementById('reset').addEventListener('click', closeSheet);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ---- step 1 answers are remembered, and said back later ------------------ */
+const nameIn = document.getElementById('f-name');
+const mailIn = document.getElementById('f-mail');
+function remember() {
+  ME.name  = (nameIn.value || '').trim();
+  ME.email = (mailIn.value || '').trim();
+  document.getElementById('r-email').textContent = ME.email || 'you@example.com';
+  refreshAsk();
+}
+nameIn.addEventListener('input', remember);
+mailIn.addEventListener('input', remember);
+
+/* ---- how should we reach you --------------------------------------------
+   A real choice. Picking "Text me" opens a mobile field, and the button stays off
+   until there is something usable to send. */
+const askBtn  = document.getElementById('askbtn');
+const mobWrap = document.getElementById('mobwrap');
+const mobIn   = document.getElementById('f-mob');
+const mobErr  = document.getElementById('mob-err');
+const doneLine = document.getElementById('done-line');
+let how = 'email';
+
+function auMobile(v) {
+  const d = (v || '').replace(/\D/g, '').replace(/^61/, '').replace(/^0/, '');
+  return d.length === 9 && d[0] === '4' ? '+61 ' + d.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : null;
+}
+function refreshAsk() {
+  askBtn.disabled = how === 'email' ? !ME.email : !auMobile(mobIn.value);
+}
+sc.querySelectorAll('[data-how]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    how = b.dataset.how;
+    sc.querySelectorAll('[data-how]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    mobWrap.hidden = how !== 'text';
+    mobErr.hidden = true;
+    if (how === 'text') mobIn.focus();
+    refreshAsk();
+  });
+});
+mobIn.addEventListener('input', function () {
+  /* the field already says +61, so a leading 0 is dropped and it groups 412 345 678 */
+  const d = mobIn.value.replace(/\D/g, '').replace(/^61/, '').replace(/^0/, '').slice(0, 9);
+  mobIn.value = d.replace(/^(\d{0,3})(\d{0,3})(\d{0,3}).*$/, function (m, a, b2, c) {
+    return [a, b2, c].filter(Boolean).join(' ');
+  });
+  mobErr.hidden = true;
+  refreshAsk();
+});
+mobIn.addEventListener('blur', function () {
+  mobErr.hidden = !(mobIn.value.trim() && !auMobile(mobIn.value));
+});
+
+/* The request goes to our own endpoint, which is the one place that decides where it
+   lands. Nothing about the destination is in this page. */
+askBtn.addEventListener('click', function () {
+  if (askBtn.disabled) return;
+  const mobile = how === 'text' ? auMobile(mobIn.value) : '';
+  doneLine.textContent = how === 'text'
+    ? 'A payroll person will text ' + mobile + '. Most people hear back the same working day.'
+    : 'A payroll person will email ' + (ME.email || 'you') + '. Most people hear back the same working day.';
+  show('reachdone');
+  fetch('/__lead', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: ME.name, email: ME.email, business: ME.biz, abn: ME.abn,
+                           prefer: how, mobile: mobile, page: 'start' })
+  }).then(function (r) { if (!r.ok) throw new Error(r.status); })
+    .catch(function () {
+      /* Nothing to send to from a shared copy. Say so rather than pretending it went. */
+      doneLine.textContent = 'This is a preview, so nothing was actually sent.';
+    });
+});
+refreshAsk();
+
 </script>
 </body>
 </html>
