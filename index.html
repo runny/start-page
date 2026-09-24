@@ -520,8 +520,8 @@
   .fbx { position:absolute; top:10px; right:12px; border:0; background:none; cursor:pointer;
          font-size:22px; line-height:1; color:var(--n-mut); padding:4px 8px; }
   .fbstep { display:none; } .fbstep.on { display:block; }
-  .fbh { font-family:var(--text); font-size:15px; font-weight:500; line-height:1.5;
-         letter-spacing:0; color:var(--heading); padding-right:26px; }
+  .fbh { font-family:var(--display); font-size:18px; font-weight:800; letter-spacing:-.01em;
+         color:var(--heading); padding-right:26px; }
   .fbsub { font-size:14px; color:var(--n-mut); line-height:1.5; margin-top:6px; }
   .fbcard textarea { width:100%; margin-top:14px; border:1px solid var(--n100); border-radius:12px;
                      padding:12px 14px; font-family:var(--text); font-size:15px; color:var(--n900);
@@ -803,8 +803,8 @@
     <button class="fbx" id="fbx" type="button" aria-label="Close">&times;</button>
 
     <div class="fbstep on" data-fb="say">
-      <div class="fbh" id="fb-h">If you have any feedback on getting set up with PaySauce,
-        we would love to hear it.</div>
+      <div class="fbh" id="fb-h">We love feedback</div>
+      <div class="fbsub">Anything at all on getting set up with PaySauce. Rough is fine.</div>
       <textarea id="fb-text" rows="5" placeholder="Add a comment here."></textarea>
       <button class="nbtn" id="fb-next" type="button" disabled>Next</button>
     </div>
