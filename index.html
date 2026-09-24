@@ -847,7 +847,12 @@ const PS_LIVE = /(^|\.)paysauce\.com$/.test(location.hostname);
    them to anyone reviewing it makes the review worthless. The step stays either way, because it
    is the same step and it is well liked; without a key it takes the name as typed. Put the key
    on the page and the matching returns in the same place. */
-const PS_LOOKUP = !!window.PS_ABR_GUID;
+/* One deliberate exception, for showing the step to people rather than testing it:
+   ?demo=1 on the web address turns the matching on with stand-in results, which stay
+   plainly marked as examples. It is a switch on the link, not a rule about which site
+   the page is on, so the published page can never turn it on by accident. */
+const PS_DEMO = new URLSearchParams(location.search).get('demo') === '1';
+const PS_LOOKUP = !!window.PS_ABR_GUID || PS_DEMO;
 if (!PS_LOOKUP) document.documentElement.classList.add('no-lookup');
 if (!PS_LOOKUP) addEventListener('DOMContentLoaded', function () {
   document.getElementById('biz-h').textContent = "What's your business called?";
@@ -968,7 +973,7 @@ const T = (function () {
       intent_score: score,
       furthest_step: furthest,
       value_is: 'intent_points_not_money',
-      arm: ARM
+      arm: ARM, demo: PS_DEMO ? 1 : 0
     }, CLICK, params || {});
 
     if (window.fbq) {
