@@ -632,7 +632,7 @@
           </div>
           <div class="nbtn" data-go="waiting" data-href="https://id.paysauce.com/signup">I've got these, let's go</div>
           <div class="nbtn sec" data-go="help">I'd like a hand with this</div>
-          <div class="nlink inmob" data-go="product">I want to see the product first</div>
+          <div class="nlink inmob" data-href="https://www.paysauce.com/au/product/running-payday#see-in-action">I want to see the product first</div>
         </div>
       </div>
 
@@ -736,6 +736,7 @@
         </div>
       </div>
 
+      
       <div class="scr" data-s="product">
         <div class="bar"><span>9:41</span><span class="r">&#9646;&#9646;&#9646;</span></div>
         <div class="nwrap">
@@ -795,7 +796,7 @@
     </div></div>
 
     <div class="undercard" id="undercard">
-      <button class="underlink" data-go="product">I want to see the product first</button>
+      <button class="underlink" data-href="https://www.paysauce.com/au/product/running-payday#see-in-action">I want to see the product first</button>
     </div>
     <div class="tools"><a id="reset">Start again</a></div>
 </main>
@@ -1237,7 +1238,11 @@ show('signup');
 /* Back walks the same routes the prototype's own back controls use. Nothing new. */
 const PAGEBACK = { biz:'signup', confirm:'biz', need:'biz', waiting:'need', help:'need', reach:'help', reachdone:'need', product:'need' };
 document.getElementById('undercard').addEventListener('click', e => {
-  const t = e.target.closest('[data-go]'); if (t) { e.preventDefault(); show(t.dataset.go); }
+  const t = e.target.closest('[data-go],[data-href]'); if (!t) return;
+  e.preventDefault();
+  /* a real page opens in its own tab, so nobody loses their place in the flow */
+  if (t.dataset.href) { T.fire('StartProductView'); return window.open(t.dataset.href, '_blank', 'noopener'); }
+  show(t.dataset.go);
 });
 document.getElementById('pageback').onclick = () => {
   const here = sc.querySelector('[data-s].on').dataset.s;
@@ -1508,6 +1513,7 @@ refreshAsk();
     if (copy) T.fire('StartAbnCopied');
     if (href && href.dataset.href.indexOf('signup') > -1) T.fire('InitiateCheckout', { content_name: 'get started page' });
     if (href && href.dataset.href.indexOf('book-a-demo') > -1) T.fire('StartBookDemo');
+    if (href && href.dataset.href.indexOf('running-payday') > -1) T.fire('StartProductView');
     if (go && !back) {
       if (go.dataset.go === 'biz' && go.classList.contains('nbtn') &&
           !go.hasAttribute('disabled')) T.fire('StartStep1Complete');
