@@ -847,11 +847,15 @@ const PS_LIVE = /(^|\.)paysauce\.com$/.test(location.hostname);
    them to anyone reviewing it makes the review worthless. The step stays either way, because it
    is the same step and it is well liked; without a key it takes the name as typed. Put the key
    on the page and the matching returns in the same place. */
-/* One deliberate exception, for showing the step to people rather than testing it:
-   ?demo=1 on the web address turns the matching on with stand-in results, which stay
-   plainly marked as examples. It is a switch on the link, not a rule about which site
-   the page is on, so the published page can never turn it on by accident. */
-const PS_DEMO = new URLSearchParams(location.search).get('demo') === '1';
+/* Two audiences, two versions, and the published page is protected from both switches.
+     A shared copy shows the full step with stand-in results, plainly marked as examples,
+     because that is what people are being shown. Add ?live=1 to see it behave exactly as
+     the published page does, with no matching, for reviewing what actually ships.
+     The published page ITSELF never shows stand-in results whatever is on the address,
+     because real people must never be offered a business that does not exist. There, the
+     matching only appears once the register key is on the page. */
+const PS_SHOWLIVE = new URLSearchParams(location.search).get('live') === '1';
+const PS_DEMO = !PS_LIVE && !PS_SHOWLIVE;
 const PS_LOOKUP = !!window.PS_ABR_GUID || PS_DEMO;
 if (!PS_LOOKUP) document.documentElement.classList.add('no-lookup');
 if (!PS_LOOKUP) addEventListener('DOMContentLoaded', function () {
