@@ -487,8 +487,12 @@
      headline treated as one block. Three rows, equal top and bottom, card in the middle: the
      headline then rises to sit just above it. */
   @media (min-width:641px) {
-    .wrap { display:grid; grid-template-rows:1fr auto 1fr; justify-items:center;
+    /* Children are centred with a margin, not with justify-items, because centring grid
+       items makes each one shrink to fit its own content and the card then changes width
+       from step to step. */
+    .wrap { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:1fr auto 1fr;
             align-content:stretch; padding-bottom:88px; }
+    .wrap > * { margin-inline:auto; }
     .lede { grid-row:1; align-self:end; margin-bottom:clamp(20px,3vh,32px); }
     .ph { grid-row:2; }
     #undercard { grid-row:3; align-self:start; }
@@ -516,7 +520,8 @@
   .fbx { position:absolute; top:10px; right:12px; border:0; background:none; cursor:pointer;
          font-size:22px; line-height:1; color:var(--n-mut); padding:4px 8px; }
   .fbstep { display:none; } .fbstep.on { display:block; }
-  .fbh { font-family:var(--display); font-size:19px; font-weight:800; letter-spacing:-.01em; color:var(--heading); }
+  .fbh { font-family:var(--text); font-size:15px; font-weight:500; line-height:1.5;
+         letter-spacing:0; color:var(--heading); padding-right:26px; }
   .fbsub { font-size:14px; color:var(--n-mut); line-height:1.5; margin-top:6px; }
   .fbcard textarea { width:100%; margin-top:14px; border:1px solid var(--n100); border-radius:12px;
                      padding:12px 14px; font-family:var(--text); font-size:15px; color:var(--n900);
@@ -798,14 +803,15 @@
     <button class="fbx" id="fbx" type="button" aria-label="Close">&times;</button>
 
     <div class="fbstep on" data-fb="say">
-      <div class="fbh" id="fb-h">What would you change?</div>
-      <textarea id="fb-text" rows="5" placeholder="Anything at all. Rough is fine."></textarea>
+      <div class="fbh" id="fb-h">If you have any feedback on getting set up with PaySauce,
+        we would love to hear it.</div>
+      <textarea id="fb-text" rows="5" placeholder="Add a comment here."></textarea>
       <button class="nbtn" id="fb-next" type="button" disabled>Next</button>
     </div>
 
     <div class="fbstep" data-fb="who">
       <div class="fbh">Who should we thank?</div>
-      <div class="fbsub">So we can come back to you. Skip it if you would rather not.</div>
+      <div class="fbsub">So we can come back to you if we need to. Leave it out if you would rather.</div>
       <div class="nlab" id="fb-ln">Your name</div>
       <input class="nin" id="fb-name" type="text" placeholder="Sam" aria-labelledby="fb-ln">
       <div class="nlab" id="fb-le">Email</div>
@@ -815,8 +821,8 @@
     </div>
 
     <div class="fbstep" data-fb="done">
-      <div class="fbh">Thanks.</div>
-      <div class="fbsub" id="fb-done">That has gone straight through.</div>
+      <div class="fbh">Thanks, that is really useful.</div>
+      <div class="fbsub" id="fb-done">It has gone straight through.</div>
     </div>
   </div>
 </div>
@@ -834,11 +840,12 @@ const PS_FEEDBACK_FORM = '53bba5a4-b01e-4866-8906-0970d3cf5777';
    page and the step comes back on its own. A preview keeps the step, with its results plainly
    marked as examples, so it can still be looked at and shown to people. */
 const PS_LIVE = /(^|\.)paysauce\.com$/.test(location.hostname);
-/* The register can only be asked with a key. Until one arrives the step stays, because it is
-   the same step and it is well liked; it just takes the name as typed instead of matching it.
-   When the key is put on the page the matching comes back in place, and nobody sees the shape
-   of the flow change. A preview keeps the full version with results marked as examples. */
-const PS_LOOKUP = !PS_LIVE || !!window.PS_ABR_GUID;
+/* The register can only be asked with a key. One rule everywhere, including previews: no key,
+   no matching. Made-up businesses were only ever scaffolding for building the step, and showing
+   them to anyone reviewing it makes the review worthless. The step stays either way, because it
+   is the same step and it is well liked; without a key it takes the name as typed. Put the key
+   on the page and the matching returns in the same place. */
+const PS_LOOKUP = !!window.PS_ABR_GUID;
 if (!PS_LOOKUP) document.documentElement.classList.add('no-lookup');
 if (!PS_LOOKUP) addEventListener('DOMContentLoaded', function () {
   document.getElementById('biz-h').textContent = "What's your business called?";
